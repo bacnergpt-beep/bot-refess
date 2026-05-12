@@ -3,12 +3,16 @@ from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, fil
 import json
 import os
 from datetime import datetime
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
-TOKEN = "8675240270:AAFr1QF-oLLcVXAnjniPWIqBhiXjTB9eyqI"
+# 🔑 CONFIG
+TOKEN = os.getenv("8675240270:AAFr1QF-oLLcVXAnjniPWIqBhiXjTB9eyqI") or "8675240270:AAFr1QF-oLLcVXAnjniPWIqBhiXjTB9eyqI"
 CANAL = "@yesterpreuwba"
 OWNER_ID = 7752782654
 
-CARPETA = os.path.join(os.getenv("APPDATA"), "RefesBot")
+# 📁 CARPETA SEGURA
+CARPETA = os.path.join(os.getenv("APPDATA") or ".", "RefesBot")
 os.makedirs(CARPETA, exist_ok=True)
 
 ARCHIVO_DATOS = os.path.join(CARPETA, "datos.json")
@@ -16,6 +20,7 @@ ARCHIVO_USERS = os.path.join(CARPETA, "users.json")
 ARCHIVO_ADMINS = os.path.join(CARPETA, "admins.json")
 
 
+# 📂 CARGAR
 def cargar(path):
     try:
         if not os.path.exists(path):
@@ -26,12 +31,13 @@ def cargar(path):
         return {}
 
 
+# 💾 GUARDAR
 def guardar(path, data):
     with open(path, "w") as f:
         json.dump(data, f)
 
 
-# 🔐 PERMISOS
+# 🔐 ROLES
 def es_owner(user_id):
     return user_id == OWNER_ID
 
@@ -105,7 +111,7 @@ async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"❌ Usuario eliminado: {user_id}")
 
 
-# 🔄 RESET (solo admin alto)
+# 🔄 RESET
 async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_admin(update.message.from_user.id):
         return
@@ -114,7 +120,7 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🔄 Contadores reiniciados")
 
 
-# 📊 REPORTE (solo admin)
+# 📊 REPORTE
 async def reporte(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not es_admin(update.message.from_user.id):
         return
@@ -222,7 +228,24 @@ VUELVE PRONTO
     )
 
 
-# ▶️ iniciar
+# 🌐 SERVIDOR PARA RENDER (NO SE DUERMA)
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot activo")
+
+
+def run_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    server.serve_forever()
+
+
+threading.Thread(target=run_server).start()
+
+
+# ▶️ INICIAR BOT
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("adduser", adduser))
@@ -232,5 +255,6 @@ app.add_handler(CommandHandler("reporte", reporte))
 app.add_handler(MessageHandler(filters.Regex(r"^\.reset$"), reset))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, refes))
 
-print("Bot PRO con roles funcionando 🔥")
+print("Bot 24/7 funcionando en Render 🚀")
 app.run_polling()
+
